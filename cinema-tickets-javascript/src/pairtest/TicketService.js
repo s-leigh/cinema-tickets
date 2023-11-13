@@ -19,46 +19,49 @@ export default class TicketService {
       throw new InvalidPurchaseException(`Invalid account ID provided: ${accountId}`)
     }
 
-    let totalTicketsRequested = 0
-    let adultTickets = 0
-    let childTickets = 0
-    let infantTickets = 0
+    const ticketNumbers = {
+      ADULT: 0,
+      CHILD: 0,
+      INFANT: 0,
+      TOTAL: 0
+    }
 
     ticketTypeRequests.forEach(request => {
-      totalTicketsRequested += request.getNoOfTickets()
-      if (request.getTicketType() === 'ADULT') adultTickets += request.getNoOfTickets()
-      if (request.getTicketType() === 'CHILD') childTickets += request.getNoOfTickets()
-      if (request.getTicketType() === 'INFANT') infantTickets += request.getNoOfTickets()
+      const numberOfTickets = request.getNoOfTickets()
+      if (numberOfTickets < 0) throw new InvalidPurchaseException(`Number of tickets less than 0 is not allowed (value provided: ${numberOfTickets})`)
+      
+      ticketNumbers.TOTAL += numberOfTickets
+      ticketNumbers[request.getTicketType()] += numberOfTickets
     })
 
-    if (totalTicketsRequested === 0) return
+    if (ticketNumbers.TOTAL === 0) return
 
-    if (totalTicketsRequested > MAX_PERMITTED_NUMBER_OF_TICKETS) {
+    if (ticketNumbers.TOTAL > MAX_PERMITTED_NUMBER_OF_TICKETS) {
       throw new InvalidPurchaseException(
-        `Too many tickets (${totalTicketsRequested}) requested: max ${MAX_PERMITTED_NUMBER_OF_TICKETS}`
+        `Too many tickets (${ticketNumbers.TOTAL}) requested: max ${MAX_PERMITTED_NUMBER_OF_TICKETS}`
       )
     }
 
-    if (adultTickets === 0) {
+    if (ticketNumbers.ADULT === 0) {
       throw new InvalidPurchaseException(
         `Child and Infant tickets cannot be purchased without purchasing an Adult ticket.`
       )
     }
 
-    if (adultTickets < infantTickets) {
+    if (ticketNumbers.ADULT < ticketNumbers.INFANT) {
       throw new InvalidPurchaseException(
-        `Infants must sit on an adult's lap, but there are not enough adults (${adultTickets}) for infants (${infantTickets})`
+        `Infants must sit on an adult's lap, but there are not enough adults (${ticketNumbers.ADULT}) for infants (${ticketNumbers.INFANT})`
       )
     }
 
     try {
-      this.ticketPaymentService.makePayment(accountId, this.#totalPricePence(adultTickets, childTickets))
+      this.ticketPaymentService.makePayment(accountId, this.#totalPricePence(ticketNumbers.ADULT, ticketNumbers.CHILD))
     } catch (err) {
       throw new ThirdPartyServiceException(`Could not complete payment transaction for account ${accountId}`, err, "PAYMENT")
     }
 
     try {
-      this.seatReservationService.reserveSeat(accountId, adultTickets + childTickets)
+      this.seatReservationService.reserveSeat(accountId, ticketNumbers.ADULT + ticketNumbers.CHILD)
     } catch (err) {
       throw new ThirdPartyServiceException(`Could not complete seat reservation transaction for account ${accountId}`, err, "SEAT_RESERVATION")
     }

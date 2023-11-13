@@ -52,6 +52,12 @@ describe('TicketService', () => {
             const purchaseFn = () => ticketService.purchaseTickets(1, ...ticketRequests)
             expect(purchaseFn).toThrow(InvalidPurchaseException)
         })
+
+        test('Throws InvalidPurchaseException when <0 tickets are requested', () => {
+            const ticketRequest = new TicketTypeRequest('ADULT', -1)
+            const purchaseFn = () => ticketService.purchaseTickets(1, ticketRequest)
+            expect(purchaseFn).toThrow(InvalidPurchaseException)
+        })
     })
 
     describe('Payment and seat reservations', () => {
