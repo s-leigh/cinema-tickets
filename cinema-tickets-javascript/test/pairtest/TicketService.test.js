@@ -3,7 +3,6 @@ import InvalidPurchaseException from "../../src/pairtest/lib/InvalidPurchaseExce
 import TicketTypeRequest from "../../src/pairtest/lib/TicketTypeRequest";
 import TicketPaymentService from "../../src/thirdparty/paymentgateway/TicketPaymentService"
 import SeatReservationService from "../../src/thirdparty/seatbooking/SeatReservationService.js"
-import ThirdPartyServiceException from "../../src/pairtest/lib/ThirdPartyServiceException.js"
 
 let mockMakePayment
 let mockReserveSeat
@@ -78,20 +77,6 @@ describe('TicketService', () => {
             ticketService.purchaseTickets(1, ...ticketRequests)
             expect(mockMakePayment).not.toHaveBeenCalled()
             expect(mockReserveSeat).not.toHaveBeenCalled()
-        })
-
-        test('Throws ThirdPartyServiceException if payment service throws an error', () => {
-            const ts = new TicketService({ makePayment: () => { throw new Error('aaahhh') } })
-            const validTicketRequest = new TicketTypeRequest('ADULT', 1)
-            const purchaseFn = () => ts.purchaseTickets(1, validTicketRequest)
-            expect(purchaseFn).toThrow(ThirdPartyServiceException)
-        })
-
-        test('Throws ThirdPartyServiceException if seat reservation service throws an error', () => {
-            const ts = new TicketService(undefined, { reserveSeat: () => { throw new Error('aaahhh') } })
-            const validTicketRequest = new TicketTypeRequest('ADULT', 1)
-            const purchaseFn = () => ts.purchaseTickets(1, validTicketRequest)
-            expect(purchaseFn).toThrow(ThirdPartyServiceException)
         })
     })
 })

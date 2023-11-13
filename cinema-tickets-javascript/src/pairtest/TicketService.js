@@ -1,6 +1,4 @@
-import TicketTypeRequest from './lib/TicketTypeRequest.js';
 import InvalidPurchaseException from './lib/InvalidPurchaseException.js';
-import ThirdPartyServiceException from './lib/ThirdPartyServiceException.js'
 import TicketPaymentService from "../thirdparty/paymentgateway/TicketPaymentService"
 import SeatReservationService from '../thirdparty/seatbooking/SeatReservationService.js';
 
@@ -29,7 +27,7 @@ export default class TicketService {
     ticketTypeRequests.forEach(request => {
       const numberOfTickets = request.getNoOfTickets()
       if (numberOfTickets < 0) throw new InvalidPurchaseException(`Number of tickets less than 0 is not allowed (value provided: ${numberOfTickets})`)
-      
+
       ticketNumbers.TOTAL += numberOfTickets
       ticketNumbers[request.getTicketType()] += numberOfTickets
     })
@@ -54,17 +52,9 @@ export default class TicketService {
       )
     }
 
-    try {
-      this.ticketPaymentService.makePayment(accountId, this.#totalPricePence(ticketNumbers.ADULT, ticketNumbers.CHILD))
-    } catch (err) {
-      throw new ThirdPartyServiceException(`Could not complete payment transaction for account ${accountId}`, err, "PAYMENT")
-    }
-
-    try {
-      this.seatReservationService.reserveSeat(accountId, ticketNumbers.ADULT + ticketNumbers.CHILD)
-    } catch (err) {
-      throw new ThirdPartyServiceException(`Could not complete seat reservation transaction for account ${accountId}`, err, "SEAT_RESERVATION")
-    }
+    // In real life we would wrap both of these in some kind of atomic transaction
+    this.ticketPaymentService.makePayment(accountId, this.#totalPricePence(ticketNumbers.ADULT, ticketNumbers.CHILD))
+    this.seatReservationService.reserveSeat(accountId, ticketNumbers.ADULT + ticketNumbers.CHILD)
   }
 
   #isValidAccountId(accountId) {
