@@ -1,5 +1,6 @@
 import TicketTypeRequest from './lib/TicketTypeRequest.js';
 import InvalidPurchaseException from './lib/InvalidPurchaseException.js';
+import ThirdPartyServiceException from './lib/ThirdPartyServiceException.js'
 import TicketPaymentService from "../thirdparty/paymentgateway/TicketPaymentService"
 import SeatReservationService from '../thirdparty/seatbooking/SeatReservationService.js';
 
@@ -21,11 +22,13 @@ export default class TicketService {
     let totalTicketsRequested = 0
     let adultTickets = 0
     let childTickets = 0
+    let infantTickets = 0
 
     ticketTypeRequests.forEach(request => {
       totalTicketsRequested += request.getNoOfTickets()
       if (request.getTicketType() === 'ADULT') adultTickets += request.getNoOfTickets()
       if (request.getTicketType() === 'CHILD') childTickets += request.getNoOfTickets()
+      if (request.getTicketType() === 'INFANT') infantTickets += request.getNoOfTickets()
     })
 
     if (totalTicketsRequested === 0) return
@@ -42,16 +45,22 @@ export default class TicketService {
       )
     }
 
+    if (adultTickets < infantTickets) {
+      throw new InvalidPurchaseException(
+        `Infants must sit on an adult's lap, but there are not enough adults (${adultTickets}) for infants (${infantTickets})`
+      )
+    }
+
     try {
       this.ticketPaymentService.makePayment(accountId, this.#totalPricePence(adultTickets, childTickets))
     } catch (err) {
-      throw new Error(`Could not complete payment transaction for account ${accountId}. Error: ${err.toString()}`)
+      throw new ThirdPartyServiceException(`Could not complete payment transaction for account ${accountId}`, err, "PAYMENT")
     }
 
     try {
       this.seatReservationService.reserveSeat(accountId, adultTickets + childTickets)
     } catch (err) {
-      throw new Error(`Could not complete seat reservation transaction for account ${accountId}. Error: ${err.toString()}`)
+      throw new ThirdPartyServiceException(`Could not complete seat reservation transaction for account ${accountId}`, err, "SEAT_RESERVATION")
     }
   }
 

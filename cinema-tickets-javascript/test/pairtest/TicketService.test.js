@@ -3,57 +3,89 @@ import InvalidPurchaseException from "../../src/pairtest/lib/InvalidPurchaseExce
 import TicketTypeRequest from "../../src/pairtest/lib/TicketTypeRequest";
 import TicketPaymentService from "../../src/thirdparty/paymentgateway/TicketPaymentService"
 import SeatReservationService from "../../src/thirdparty/seatbooking/SeatReservationService.js"
+import ThirdPartyServiceException from "../../src/pairtest/lib/ThirdPartyServiceException.js"
 
-const mockMakePayment = jest.fn()
-const mockReserveSeat = jest.fn()
+let mockMakePayment
+let mockReserveSeat
 
 jest.mock("../../src/thirdparty/paymentgateway/TicketPaymentService")
 jest.mock("../../src/thirdparty/seatbooking/SeatReservationService.js")
 
 let ticketService
 
-beforeEach(() => {
-    TicketPaymentService.mockImplementation(() => ({
-        makePayment: mockMakePayment
-    }))
-    SeatReservationService.mockImplementation(() => ({
-        reserveSeat: mockReserveSeat
-    }))
-    ticketService = new TicketService()
-})
+describe('TicketService', () => {
+    beforeEach(() => {
+        TicketPaymentService.mockClear()
+        SeatReservationService.mockClear()
+        mockMakePayment = jest.fn()
+        mockReserveSeat = jest.fn()
+        TicketPaymentService.mockImplementation(() => ({
+            makePayment: mockMakePayment
+        }))
+        SeatReservationService.mockImplementation(() => ({
+            reserveSeat: mockReserveSeat
+        }))
+        ticketService = new TicketService()
+    })
 
-test('Throws InvalidPurchaseException when given an invalid account ID', () => {
-    const validTicketRequest = new TicketTypeRequest('ADULT', 1)
-    const purchaseFn = () => ticketService.purchaseTickets(0, validTicketRequest)
-    expect(purchaseFn).toThrow(InvalidPurchaseException)
-})
+    describe('Input validation', () => {
+        test('Throws InvalidPurchaseException when given an invalid account ID', () => {
+            const validTicketRequest = new TicketTypeRequest('ADULT', 1)
+            const purchaseFn = () => ticketService.purchaseTickets(0, validTicketRequest)
+            expect(purchaseFn).toThrow(InvalidPurchaseException)
+        })
 
-test('Throws InvalidPurchaseException when >20 tickets requested', () => {
-    const ticketRequest = new TicketTypeRequest('ADULT', 21)
-    const purchaseFn = () => ticketService.purchaseTickets(1, ticketRequest)
-    expect(purchaseFn).toThrow(InvalidPurchaseException)
-})
+        test('Throws InvalidPurchaseException when >20 tickets requested', () => {
+            const ticketRequest = new TicketTypeRequest('ADULT', 21)
+            const purchaseFn = () => ticketService.purchaseTickets(1, ticketRequest)
+            expect(purchaseFn).toThrow(InvalidPurchaseException)
+        })
 
-test('Throws InvalidPurchaseException when no adult tickets are requested', () => {
-    const ticketRequests = [new TicketTypeRequest('CHILD', 1), new TicketTypeRequest('INFANT', 1)]
-    const purchaseFn = () => ticketService.purchaseTickets(1, ...ticketRequests)
-    expect(purchaseFn).toThrow(InvalidPurchaseException)
-})
+        test('Throws InvalidPurchaseException when no adult tickets are requested', () => {
+            const ticketRequests = [new TicketTypeRequest('CHILD', 1), new TicketTypeRequest('INFANT', 1)]
+            const purchaseFn = () => ticketService.purchaseTickets(1, ...ticketRequests)
+            expect(purchaseFn).toThrow(InvalidPurchaseException)
+        })
 
-test('Calls payment service correctly for 2 adults and 2 children', () => {
-    const ticketRequests = [new TicketTypeRequest('ADULT', 2), new TicketTypeRequest('CHILD', 2)]
-    ticketService.purchaseTickets(1, ...ticketRequests)
-    expect(mockMakePayment).toHaveBeenCalledWith(1, 6000)
-})
+        test('Throws InvalidPurchaseException when more infant tickets are requested than adult tickets', () => {
+            const ticketRequests = [new TicketTypeRequest('ADULT', 2), new TicketTypeRequest('INFANT', 3)]
+            const purchaseFn = () => ticketService.purchaseTickets(1, ...ticketRequests)
+            expect(purchaseFn).toThrow(InvalidPurchaseException)
+        })
+    })
 
-test('Calls seat reservation service correctly for 2 adults and 2 children', () => {
-    const ticketRequests = [new TicketTypeRequest('ADULT', 2), new TicketTypeRequest('CHILD', 2)]
-    ticketService.purchaseTickets(1, ...ticketRequests)
-    expect(mockReserveSeat).toHaveBeenCalledWith(1, 4)
-})
+    describe('Payment and seat reservations', () => {
+        test('Calls payment service correctly for 2 adults, 2 children, 2 infants', () => {
+            const ticketRequests = [new TicketTypeRequest('ADULT', 2), new TicketTypeRequest('CHILD', 2), new TicketTypeRequest('INFANT', 2)]
+            ticketService.purchaseTickets(1, ...ticketRequests)
+            expect(mockMakePayment).toHaveBeenCalledWith(1, 6000)
+        })
 
-test('Does not reserve seats for infants', () => {
-    const ticketRequests = [new TicketTypeRequest('ADULT', 2), new TicketTypeRequest('INFANT', 2)]
-    ticketService.purchaseTickets(1, ...ticketRequests)
-    expect(mockReserveSeat).toHaveBeenCalledWith(1, 2)
+        test('Calls seat reservation service correctly for 2 adults, 2 children, 2 infants', () => {
+            const ticketRequests = [new TicketTypeRequest('ADULT', 2), new TicketTypeRequest('CHILD', 2), new TicketTypeRequest('INFANT', 2)]
+            ticketService.purchaseTickets(1, ...ticketRequests)
+            expect(mockReserveSeat).toHaveBeenCalledWith(1, 4)
+        })
+
+        test('Does not call payment or seat reservation services if no tickets are requested', () => {
+            const ticketRequests = [new TicketTypeRequest('ADULT', 0)]
+            ticketService.purchaseTickets(1, ...ticketRequests)
+            expect(mockMakePayment).not.toHaveBeenCalled()
+            expect(mockReserveSeat).not.toHaveBeenCalled()
+        })
+
+        test('Throws ThirdPartyServiceException if payment service throws an error', () => {
+            const ts = new TicketService({ makePayment: () => { throw new Error('aaahhh') } })
+            const validTicketRequest = new TicketTypeRequest('ADULT', 1)
+            const purchaseFn = () => ts.purchaseTickets(1, validTicketRequest)
+            expect(purchaseFn).toThrow(ThirdPartyServiceException)
+        })
+
+        test('Throws ThirdPartyServiceException if seat reservation service throws an error', () => {
+            const ts = new TicketService(undefined, { reserveSeat: () => { throw new Error('aaahhh') } })
+            const validTicketRequest = new TicketTypeRequest('ADULT', 1)
+            const purchaseFn = () => ts.purchaseTickets(1, validTicketRequest)
+            expect(purchaseFn).toThrow(ThirdPartyServiceException)
+        })
+    })
 })
