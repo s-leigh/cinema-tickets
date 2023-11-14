@@ -53,8 +53,8 @@ describe('TicketService', () => {
     })
 
     test('Throws InvalidPurchaseException when <0 tickets are requested', () => {
-      const ticketRequest = new TicketTypeRequest('ADULT', -1)
-      const purchaseFn = () => ticketService.purchaseTickets(1, ticketRequest)
+      const ticketRequests = [new TicketTypeRequest('ADULT', -1), new TicketTypeRequest('ADULT', 3)]
+      const purchaseFn = () => ticketService.purchaseTickets(1, ...ticketRequests)
       expect(purchaseFn).toThrow(InvalidPurchaseException)
     })
   })

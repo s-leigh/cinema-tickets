@@ -17,20 +17,7 @@ export default class TicketService {
       throw new InvalidPurchaseException(`Invalid account ID provided: ${accountId}`)
     }
 
-    const ticketNumbers = {
-      ADULT: 0,
-      CHILD: 0,
-      INFANT: 0,
-      TOTAL: 0
-    }
-
-    ticketTypeRequests.forEach(request => {
-      const numberOfTickets = request.getNoOfTickets()
-      if (numberOfTickets < 0) throw new InvalidPurchaseException(`Number of tickets less than 0 is not allowed (value provided: ${numberOfTickets})`)
-
-      ticketNumbers.TOTAL += numberOfTickets
-      ticketNumbers[request.getTicketType()] += numberOfTickets
-    })
+    const ticketNumbers = this.#countTickets(...ticketTypeRequests)
 
     if (ticketNumbers.TOTAL === 0) return
 
@@ -59,6 +46,26 @@ export default class TicketService {
 
   #isValidAccountId (accountId) {
     return accountId > 0
+  }
+
+  // Could be its own service if we wanted
+  #countTickets (...ticketTypeRequests) {
+    const ticketNumbers = {
+      ADULT: 0,
+      CHILD: 0,
+      INFANT: 0,
+      TOTAL: 0
+    }
+
+    ticketTypeRequests.forEach(request => {
+      const numberOfTickets = request.getNoOfTickets()
+      if (numberOfTickets < 0) throw new InvalidPurchaseException(`Number of tickets less than 0 is not allowed (value provided: ${numberOfTickets})`)
+
+      ticketNumbers.TOTAL += numberOfTickets
+      ticketNumbers[request.getTicketType()] += numberOfTickets
+    })
+
+    return ticketNumbers
   }
 
   #totalPricePence (noOfAdults, noOfChildren) {
