@@ -1,18 +1,18 @@
-import InvalidPurchaseException from './lib/InvalidPurchaseException.js';
-import TicketPaymentService from "../thirdparty/paymentgateway/TicketPaymentService"
-import SeatReservationService from '../thirdparty/seatbooking/SeatReservationService.js';
+import InvalidPurchaseException from './lib/InvalidPurchaseException.js'
+import TicketPaymentService from '../thirdparty/paymentgateway/TicketPaymentService'
+import SeatReservationService from '../thirdparty/seatbooking/SeatReservationService.js'
 
 const ADULT_TICKET_PRICE_PENCE = 2000
 const CHILD_TICKET_PRICE_PENCE = 1000
 const MAX_PERMITTED_NUMBER_OF_TICKETS = 20
 
 export default class TicketService {
-  constructor(ticketPaymentService = new TicketPaymentService(), seatReservationService = new SeatReservationService()) {
+  constructor (ticketPaymentService = new TicketPaymentService(), seatReservationService = new SeatReservationService()) {
     this.ticketPaymentService = ticketPaymentService
     this.seatReservationService = seatReservationService
   }
 
-  purchaseTickets(accountId, ...ticketTypeRequests) {
+  purchaseTickets (accountId, ...ticketTypeRequests) {
     if (!this.#isValidAccountId(accountId)) {
       throw new InvalidPurchaseException(`Invalid account ID provided: ${accountId}`)
     }
@@ -42,7 +42,7 @@ export default class TicketService {
 
     if (ticketNumbers.ADULT === 0) {
       throw new InvalidPurchaseException(
-        `Child and Infant tickets cannot be purchased without purchasing an Adult ticket.`
+        'Child and Infant tickets cannot be purchased without purchasing an Adult ticket.'
       )
     }
 
@@ -57,11 +57,11 @@ export default class TicketService {
     this.seatReservationService.reserveSeat(accountId, ticketNumbers.ADULT + ticketNumbers.CHILD)
   }
 
-  #isValidAccountId(accountId) {
+  #isValidAccountId (accountId) {
     return accountId > 0
   }
 
-  #totalPricePence(noOfAdults, noOfChildren) {
+  #totalPricePence (noOfAdults, noOfChildren) {
     return (noOfAdults * ADULT_TICKET_PRICE_PENCE) + (noOfChildren * CHILD_TICKET_PRICE_PENCE)
   }
 }
